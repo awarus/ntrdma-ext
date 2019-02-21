@@ -102,39 +102,52 @@ static struct ntc_ctx_ops ntrdma_ntc_ctx_ops = {
 int ntrdma_dev_init(struct ntrdma_dev *dev, struct ntc_dev *ntc)
 {
 	int rc;
+	struct device ddev = dev->ibdev.dma_device;
 
 	dev->ntc = ntc;
 
 	rc = ntrdma_dev_vbell_init(dev,
 				   NTRDMA_DEV_VBELL_COUNT,
 				   NTRDMA_DEV_VBELL_START);
-	if (rc)
+	if (rc) {
+		dev_err(dev, "vbell init error\n");
 		goto err_vbell;
+	}
 
 	rc = ntrdma_dev_cmd_init(dev,
 				 NTRDMA_DEV_CMD_RECV_VBELL_IDX,
 				 NTRDMA_DEV_CMD_SEND_VBELL_IDX,
 				 NTRDMA_DEV_CMD_SEND_CAP);
-	if (rc)
+	if (rc) {
+		dev_err(dev, "cmd init error\n");
 		goto err_cmd;
+	}
 
 	rc = ntrdma_dev_eth_init(dev,
 				 NTRDMA_DEV_ETH_VBELL_IDX,
 				 NTRDMA_DEV_ETH_RX_CAP);
-	if (rc)
+	if (rc) {
+		dev_err(dev, "eth init error\n");
 		goto err_eth;
+	}
 
 	rc = ntrdma_dev_res_init(dev);
-	if (rc)
+	if (rc) {
+		dev_err(dev, "res init error\n");
 		goto err_res;
+	}
 
 	rc = ntrdma_dev_ib_init(dev);
-	if (rc)
+	if (rc) {
+		dev_err(dev, "ib init error\n");
 		goto err_ib;
+	}
 
 	rc = ntc_set_ctx(ntc, dev, &ntrdma_ntc_ctx_ops);
-	if (rc)
+	if (rc) {
+		dev_err(dev, "set context error\n");
 		goto err_ntc;
+	}
 
 	rc = ntrdma_dev_hello_init(dev, ntc);
 	if (rc)
