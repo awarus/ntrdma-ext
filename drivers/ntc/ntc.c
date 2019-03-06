@@ -44,6 +44,8 @@
 #define DRIVER_RELDATE			"2 October 2015"
 #define DRIVER_AUTHOR			"Allen Hubbe <Allen.Hubbe@emc.com>"
 
+#define VERBOSE_DEBUG
+
 MODULE_LICENSE(DRIVER_LICENSE);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_AUTHOR(DRIVER_AUTHOR);
@@ -57,7 +59,7 @@ int __ntc_register_driver(struct ntc_driver *driver, struct module *mod,
 	if (!ntc_driver_ops_is_valid(&driver->ops))
 		return -EINVAL;
 
-	pr_devel("register driver %s\n", driver->drv.name);
+	printk("register driver %s\n", driver->drv.name);
 
 	driver->drv.bus = &ntc_bus;
 	driver->drv.name = mod_name;

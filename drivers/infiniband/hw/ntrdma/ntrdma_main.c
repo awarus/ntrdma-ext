@@ -53,16 +53,21 @@ static int ntrdma_probe(struct ntc_driver *self,
 	int rc;
 
 	pr_devel("probe ntc %s\n", dev_name(&ntc->dev));
+	printk("probe ntc %s\n", dev_name(&ntc->dev));
 
 	ntc_link_disable(ntc);
 
 	dev = (void *)ib_alloc_device(sizeof(*dev));
-	if (!dev)
+	if (!dev) {
+		dev_err(&ntc->dev, "ib alloc failrd\n");
 		return -ENOMEM;
+	}
 
 	rc = ntrdma_dev_init(dev, ntc);
-	if (rc)
+	if (rc) {
+		dev_err(&ntc->dev, "can't init ntrdma driver\n");
 		goto err_init;
+	}
 
 	ntc_link_enable(ntc);
 

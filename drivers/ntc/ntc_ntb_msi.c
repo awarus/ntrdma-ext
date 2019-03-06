@@ -1504,6 +1504,12 @@ static int ntc_ntb_probe(struct ntb_client *self,
 	dma_cap_set(DMA_MEMCPY, mask);
 
 	node = dev_to_node(&ntb->dev);
+	dmaengine_get();
+	dma = dma_find_channel(DMA_MEMCPY);
+	if (!dma)
+		pr_debug("no dma channels for device %s\n",
+			 dev_name(&ntb->dev));
+	dmaengine_put();
 	dma = dma_request_channel(mask, ntc_ntb_filter_bus, &node);
 	if (!dma) {
 		pr_debug("no dma for new device %s\n",
