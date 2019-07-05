@@ -1195,6 +1195,27 @@ static struct ntb_ctx_ops ntc_ntb_ctx_ops = {
 	.db_event			= ntc_ntb_db_event,
 };
 
+static void ntc_ntb_inf_discover(struct ntb_dev *ntb)
+{
+	int i, mw_idx;
+	resource_size_t mw_size;
+
+	mw_idx = ntb_mw_count(ntb, 0);
+	pr_debug("Inbound windows (%d):\n", mw_idx);
+	for (i = 0; i < mw_idx; i++) {
+		ntb_mw_get_align(ntb, 0, i, NULL, NULL, &mw_size);
+		pr_debug("Window %d: %llu bytes\n", i, mw_size);
+	}
+
+	mw_idx = ntb_peer_mw_count(ntb);
+	pr_debug("\n");
+	pr_debug("Outbound windows (%d):\n", mw_idx);
+	for (i = 0; i < mw_idx; i++) {
+		ntb_peer_mw_get_addr(ntb, i, NULL, &mw_size);
+		pr_debug("Window %d: %llu bytes\n", i, mw_size);
+	}
+}
+
 static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 {
 	phys_addr_t mw_base;
@@ -1213,6 +1234,8 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	ntb_link_disable(dev->ntb);
 	ntb_db_is_unsafe(dev->ntb);
 	ntb_spad_is_unsafe(dev->ntb);
+
+	ntc_ntb_inf_discover(dev->ntb);
 
 	/* we'll be using the last memory window if it exists */
 	mw_idx = ntb_mw_count(dev->ntb, 0);
@@ -1235,9 +1258,9 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	 * FIXME: ensure window is large enough.
 	 * Fail under 8G here, but mw should be >= dram.
 	 */
-	if (mw_size < 0x200000000ul) {
-		pr_debug("invalid mw size for new device %s\n",
-			 dev_name(&dev->ntb->dev));
+	if (mw_size == 0x200000000ul) {
+		pr_debug("invalid mw size for new device %s (=%llu)\n",
+			 dev_name(&dev->ntb->dev), mw_size);
 		rc = -EINVAL;
 		goto err_mw;
 	}
@@ -1530,6 +1553,8 @@ static int ntc_ntb_probe(struct ntb_client *self,
 			 dev_name(&ntb->dev));
 		rc = -ENODEV;
 		goto err_dma;
+	} else {
+		pr_debug("dma channel found for dev %s\n", dev_name(&ntb->dev));
 	}
 
 	dev->dma = dma;
