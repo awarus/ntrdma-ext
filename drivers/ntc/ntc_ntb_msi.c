@@ -1248,8 +1248,11 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	--mw_idx;
 
 	/* clear any garbage translations */
-	for (i = 0; i < mw_idx; ++i)
-		ntb_mw_clear_trans(dev->ntb, 0, i);
+	for (i = 0; i < mw_idx; ++i) {
+		rc = ntb_mw_clear_trans(dev->ntb, 0, i);
+		if (rc)
+			pr_debug("MW %d translation clear failed (%d)\n", i, rc);
+	}
 
 	/* this is the window we'll translate to local dram */
 	ntb_peer_mw_get_addr(dev->ntb, mw_idx, &mw_base, &mw_size);
