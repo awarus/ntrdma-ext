@@ -1255,7 +1255,7 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	}
 
 	/* this is the window we'll translate to local dram */
-	ntb_peer_mw_get_addr(dev->ntb, mw_idx, &mw_base, &mw_size);
+	ntb_peer_mw_get_addr(dev->ntb, 0, &mw_base, &mw_size);
 
 	/*
 	 * FIXME: ensure window is large enough.
@@ -1269,7 +1269,7 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	}
 
 	/* FIXME: zero is not a portable address for local dram */
-	rc = ntb_mw_set_trans(dev->ntb, 0, mw_idx, 0, mw_size);
+	rc = ntb_mw_set_trans(dev->ntb, 0, 0, 0, mw_size);
 	if (rc) {
 		pr_debug("failed to translate mw for new device %s\n",
 			 dev_name(&dev->ntb->dev));
@@ -1280,7 +1280,7 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	dev->peer_dram_size = mw_size;
 
 	/* a local buffer for peer driver to write */
-	ntb_peer_mw_get_addr(dev->ntb, mw_idx - 1, &mw_base, &mw_size);
+	ntb_peer_mw_get_addr(dev->ntb, mw_idx, &mw_base, &mw_size);
 
 	if (mw_size < ntc_ntb_info_size) {
 		pr_debug("invalid alignement of peer info for new device %s\n",
@@ -1325,7 +1325,7 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	}
 
 	/* set the ntb translation to the aligned dma memory */
-	rc = ntb_mw_set_trans(dev->ntb, 0, mw_idx - 1,
+	rc = ntb_mw_set_trans(dev->ntb, 0, mw_idx,
 			      dev->info_peer_on_self_dma
 			      + dev->info_peer_on_self_off,
 			      dev->info_peer_on_self_size);
@@ -1390,7 +1390,7 @@ err_map:
 			  dev->info_peer_on_self_unaligned,
 			  dev->info_peer_on_self_dma);
 err_info:
-	ntb_mw_clear_trans(dev->ntb, 0, mw_idx);
+	ntb_mw_clear_trans(dev->ntb, 0, 0);
 err_mw:
 	return rc;
 }
