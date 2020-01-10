@@ -62,6 +62,7 @@ int ntrdma_dev_eth_init(struct ntrdma_dev *dev,
 	net->features = NETIF_F_HIGHDMA;
 	random_ether_addr(net->perm_addr);
 	memcpy(net->dev_addr, net->perm_addr, net->addr_len);
+	printk("Created IB netdevice %s\n", net->name);
 
 	eth = ntrdma_net_eth(net);
 	dev->eth = eth;

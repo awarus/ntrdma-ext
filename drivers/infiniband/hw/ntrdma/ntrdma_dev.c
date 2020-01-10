@@ -121,8 +121,10 @@ int ntrdma_dev_init(struct ntrdma_dev *dev, struct ntc_dev *ntc)
 	rc = ntrdma_dev_eth_init(dev,
 				 NTRDMA_DEV_ETH_VBELL_IDX,
 				 NTRDMA_DEV_ETH_RX_CAP);
-	if (rc)
+	if (rc) {
+		printk("eth device failed\n");
 		goto err_eth;
+	}
 
 	rc = ntrdma_dev_res_init(dev);
 	if (rc)
