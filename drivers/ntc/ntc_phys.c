@@ -78,7 +78,7 @@ static void *ntc_phys_umem_get(struct ib_udata *udata,
 			       unsigned long uaddr, size_t size,
 			       int access, int dmasync)
 {
-	return ib_umem_get(udata, uaddr, size, access, dmasync);
+	return ib_umem_get(udata, uaddr, size, access);
 }
 
 static void ntc_phys_umem_put(struct ntc_dev *ntc, void *umem)

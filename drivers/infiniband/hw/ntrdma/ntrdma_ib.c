@@ -162,20 +162,15 @@ static int ntrdma_query_port(struct ib_device *ibdev,
 	return 0;
 }
 
-static struct ib_cq *ntrdma_create_cq(struct ib_device *ibdev,
+static int ntrdma_create_cq(struct ib_cq *ibcq,
+		//struct ib_device *ibdev,
 				      const struct ib_cq_init_attr *ibattr,
 				      struct ib_udata *ibudata)
 {
-	struct ntrdma_dev *dev = ntrdma_ib_dev(ibdev);
-	struct ntrdma_cq *cq;
+	struct ntrdma_dev *dev = ntrdma_ib_dev(ibcq->device);
+	struct ntrdma_cq *cq = ntrdma_ib_cq(ibcq);
 	u32 vbell_idx;
 	int rc;
-
-	cq = kmalloc_node(sizeof(*cq), GFP_KERNEL, dev->node);
-	if (!cq) {
-		rc = -ENOMEM;
-		goto err_cq;
-	}
 
 	if (ibattr->comp_vector)
 		vbell_idx = ibattr->comp_vector;
@@ -192,19 +187,17 @@ static struct ib_cq *ntrdma_create_cq(struct ib_device *ibdev,
 
 	ntrdma_dbg(dev, "added cq %p\n", cq);
 
-	return &cq->ibcq;
+	return 0;
 
 	// ntrdma_cq_del(cq);
 err_add:
 	ntrdma_cq_deinit(cq);
 err_init:
-	kfree(cq);
-err_cq:
 	ntrdma_dbg(dev, "failed, returning err %d\n", rc);
-	return ERR_PTR(rc);
+	return rc;
 }
 
-static int ntrdma_destroy_cq(struct ib_cq *ibcq,
+static void ntrdma_destroy_cq(struct ib_cq *ibcq,
 				struct ib_udata *ibudata)
 {
 	struct ntrdma_cq *cq = ntrdma_ib_cq(ibcq);
@@ -214,9 +207,6 @@ static int ntrdma_destroy_cq(struct ib_cq *ibcq,
 	ntrdma_cq_del(cq);
 	ntrdma_cq_repo(cq);
 	ntrdma_cq_deinit(cq);
-	kfree(cq);
-
-	return 0;
 }
 
 static inline int ntrdma_ib_wc_status_from_cqe(u32 op_status)
@@ -926,14 +916,12 @@ int ntrdma_dev_ib_init(struct ntrdma_dev *dev)
 	struct ib_device *ibdev = &dev->ibdev;
 	int rc;
 
-	ibdev->owner			= THIS_MODULE;
 	ibdev->node_type		= RDMA_NODE_IB_CA;
 	/* TODO: maybe this should be the number of virtual doorbells */
 	ibdev->num_comp_vectors		= 1;
 
 	ibdev->dev.parent = ntc_map_dev(dev->ntc);
 
-	ibdev->uverbs_abi_ver		= 1;
 	ibdev->phys_port_cnt		= 1;
 
 	ibdev->uverbs_cmd_mask		=
@@ -956,6 +944,9 @@ int ntrdma_dev_ib_init(struct ntrdma_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_POST_SEND)			|
 		(1ull << IB_USER_VERBS_CMD_POST_RECV)			|
 		0ull;
+
+	ibdev->ops.owner		= THIS_MODULE;
+	ibdev->ops.uverbs_abi_ver	= 1;
 
 	/* not implemented / not required */
 	ibdev->ops.get_port_immutable	= ntrdma_get_port_immutable;
