@@ -179,24 +179,17 @@ static int ntrdma_create_ah(struct ib_ah *ibah,
 				      u32 flags,
 				      struct ib_udata *udata)
 {
-	struct ntrdma_ah *ah = kmem_cache_zalloc(ah_slab, GFP_ATOMIC);
-
-	if (!ah)
-		return -ENOMEM;
+	struct ntrdma_ah *ah = container_of(ibah, struct ntrdma_ah, ibah);
 
 	ah->attr = *ah_attr;
 
-	return &ah->ibah;
-
+	return 0;
 }
 
-static int ntrdma_destroy_ah(struct ib_ah *ibah)
+static void ntrdma_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
-	struct ntrdma_ah *ah = container_of(ibah, struct ntrdma_ah, ibah);
-
-	kmem_cache_free(ah_slab, ah);
-
-	return 0;
+	/* Allocation/deallocation is performed in IB core.
+	 * Nothing to do here */
 }
 
 /* not implemented / not required? */
@@ -827,12 +820,11 @@ static int ntrdma_cq_file_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct ib_pd *ntrdma_alloc_pd(struct ib_device *ibdev,
-				     struct ib_ucontext *ibuctx,
+static int ntrdma_alloc_pd(struct ib_pd *ibpd,
 				     struct ib_udata *ibudata)
 {
-	struct ntrdma_dev *dev = ntrdma_ib_dev(ibdev);
-	struct ntrdma_pd *pd;
+	struct ntrdma_dev *dev = ntrdma_ib_dev(ibpd->device);
+	struct ntrdma_pd *pd = ntrdma_ib_pd(ibpd);
 	int rc;
 
 	ntrdma_vdbg(dev, "called\n");
@@ -844,15 +836,6 @@ static struct ib_pd *ntrdma_alloc_pd(struct ib_device *ibdev,
 		goto err_pd;
 	}
 
-	pd = kmem_cache_alloc_node(pd_slab, GFP_KERNEL, dev->node);
-	if (!pd) {
-		rc = -ENOMEM;
-		ntrdma_err(dev, "kmem_cache_alloc_node failed\n");
-		goto err_pd;
-	}
-
-	ntrdma_vdbg(dev, "allocated pd %p\n", pd);
-
 	ntrdma_pd_init(pd, dev, dev->pd_next_key++);
 
 	ntrdma_vdbg(dev, "initialized pd %p\n", pd);
@@ -863,24 +846,24 @@ static struct ib_pd *ntrdma_alloc_pd(struct ib_device *ibdev,
 
 	ntrdma_dbg(dev, "added pd key=%d", pd->key);
 
-	return &pd->ibpd;
+	return 0;
 
 err_pd:
 	atomic_dec(&dev->pd_num);
 	ntrdma_err(dev, "failed, returning err %d\n", rc);
-	return ERR_PTR(rc);
+	return rc;
 }
+
 static void ntrdma_pd_release(struct kref *kref)
 {
 	struct ntrdma_obj *obj = container_of(kref, struct ntrdma_obj, kref);
 	struct ntrdma_pd *pd = container_of(obj, struct ntrdma_pd, obj);
 	struct ntrdma_dev *dev = ntrdma_pd_dev(pd);
 
-	kmem_cache_free(pd_slab, pd);
 	atomic_dec(&dev->pd_num);
 }
 
-static int ntrdma_dealloc_pd(struct ib_pd *ibpd)
+static void ntrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct ntrdma_pd *pd = ntrdma_ib_pd(ibpd);
 	struct ntrdma_dev *dev = ntrdma_pd_dev(pd);
@@ -890,8 +873,6 @@ static int ntrdma_dealloc_pd(struct ib_pd *ibpd)
 	mutex_unlock(&dev->res_lock);
 
 	ntrdma_pd_put(pd);
-
-	return 0;
 }
 
 void ntrdma_pd_put(struct ntrdma_pd *pd)
@@ -2022,30 +2003,18 @@ static int ntrdma_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	return 0;
 }
 
-static struct ib_ucontext *ntrdma_alloc_ucontext(struct ib_device *ibdev,
+static int ntrdma_alloc_ucontext(struct ib_ucontext *ibuctx,
 						 struct ib_udata *ibudata)
 {
-	struct ntrdma_dev *dev = ntrdma_ib_dev(ibdev);
-	struct ib_ucontext *ibuctx;
-	int rc;
-
-	ibuctx = kmem_cache_alloc_node(ibuctx_slab, GFP_KERNEL, dev->node);
-	if (!ibuctx) {
-		rc = -ENOMEM;
-		goto err_ctx;
-	}
-
-	return ibuctx;
-
-err_ctx:
-	return ERR_PTR(rc);
+	/* Allocation is made in IB core.
+	 * Nothing to do here */
+	return 0;
 }
 
-static int ntrdma_dealloc_ucontext(struct ib_ucontext *ibuctx)
+static void ntrdma_dealloc_ucontext(struct ib_ucontext *ibuctx)
 {
-	kmem_cache_free(ibuctx_slab, ibuctx);
-
-	return 0;
+	/* Deallocation is made in IB core.
+	 * Nothing to do here */
 }
 
 static void ntrdma_set_node_guid(__be64 *guid)
