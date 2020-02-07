@@ -338,15 +338,14 @@ static int ntrdma_query_port(struct ib_device *ibdev,
 	return 0;
 }
 
-static struct ib_cq *ntrdma_create_cq(struct ib_device *ibdev,
+static int ntrdma_create_cq(struct ib_cq *ibcq,
 		const struct ib_cq_init_attr *ibattr,
-		struct ib_ucontext *ibuctx,
 		struct ib_udata *ibudata)
 {
-	struct ntrdma_dev *dev = ntrdma_ib_dev(ibdev);
+	struct ntrdma_dev *dev = ntrdma_ib_dev(ibcq->device);
 	struct ntrdma_create_cq_ext inbuf;
 	struct ntrdma_create_cq_resp_ext outbuf;
-	struct ntrdma_cq *cq;
+	struct ntrdma_cq *cq = ntrdma_ib_cq(ibcq);
 	u32 vbell_idx;
 	struct file *file;
 	int flags;
@@ -368,13 +367,6 @@ static struct ib_cq *ntrdma_create_cq(struct ib_device *ibdev,
 		ntrdma_err(dev, "invalid vbell_idx. idx %d >= %d",
 			vbell_idx, NTRDMA_DEV_VBELL_COUNT);
 		rc = -EINVAL;
-		goto err_cq;
-	}
-
-	cq = kmem_cache_alloc_node(cq_slab, GFP_KERNEL, dev->node);
-	if (!cq) {
-		ntrdma_err(dev, "kmem_cache_alloc_node failed\n");
-		rc = -ENOMEM;
 		goto err_cq;
 	}
 
@@ -430,7 +422,7 @@ static struct ib_cq *ntrdma_create_cq(struct ib_device *ibdev,
 				PTR_ERR(file));
 			ntrdma_cq_put(cq); /* The initial ref */
 			put_unused_fd(outbuf.cqfd);
-			return (void *)file;
+			return -EFAULT;
 		}
 		/*
 		 * Ref taken below will be released in ntrdma_cq_file_release().
@@ -469,12 +461,12 @@ static struct ib_cq *ntrdma_create_cq(struct ib_device *ibdev,
 		cq, atomic_read(&dev->cq_num), NTRDMA_DEV_MAX_CQ,
 		&cq->ibcq, vbell_idx);
 
-	return &cq->ibcq;
+	return 0;
 
 err_cq:
 	atomic_dec(&dev->cq_num);
 	ntrdma_err(dev, "failed, returning err %d\n", rc);
-	return ERR_PTR(rc);
+	return rc;
 }
 
 static void ntrdma_cq_release(struct kref *kref)
@@ -489,11 +481,10 @@ static void ntrdma_cq_release(struct kref *kref)
 	}
 
 	ntrdma_debugfs_cq_del(cq);
-	kmem_cache_free(cq_slab, cq);
 	atomic_dec(&dev->cq_num);
 }
 
-static int ntrdma_destroy_cq(struct ib_cq *ibcq)
+static void ntrdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct ntrdma_cq *cq = ntrdma_ib_cq(ibcq);
 	struct ntrdma_dev *dev = ntrdma_cq_dev(cq);
@@ -509,8 +500,6 @@ static int ntrdma_destroy_cq(struct ib_cq *ibcq)
 	ntrdma_cq_vbell_kill(cq);
 
 	ntrdma_cq_put(cq);
-
-	return 0;
 }
 
 void ntrdma_cq_put(struct ntrdma_cq *cq)
