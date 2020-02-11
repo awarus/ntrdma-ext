@@ -398,9 +398,15 @@ static void ntc_ntb_ping_pong(struct ntc_ntb_dev *dev)
 	dev->ping_flags = ping_flags;
 }
 
+#if 0
 static void ntc_ntb_ping_pong_cb(unsigned long ptrhld)
 {
 	struct ntc_ntb_dev *dev = ntc_ntb_of_ptrhld(ptrhld);
+#else
+static void ntc_ntb_ping_pong_fn(struct timer_list *t)
+{
+	struct ntc_ntb_dev *dev = from_timer(dev, t, ping_pong);
+#endif
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev->ping_lock, irqflags);
@@ -433,9 +439,15 @@ static bool ntc_ntb_ping_poll(struct ntc_ntb_dev *dev)
 	return false;
 }
 
+#if 0
 static void ntc_ntb_ping_poll_cb(unsigned long ptrhld)
 {
 	struct ntc_ntb_dev *dev = ntc_ntb_of_ptrhld(ptrhld);
+#else
+static void ntc_ntb_ping_poll_fn(struct timer_list *t)
+{
+	struct ntc_ntb_dev *dev = from_timer(dev, t, ping_poll);
+#endif
 	unsigned long irqflags;
 	int poll_msg;
 
@@ -651,7 +663,7 @@ static inline int ntc_ntb_db_config(struct ntc_ntb_dev *dev)
 	phys_addr_t peer_irq_phys_addr_base;
 	u64 peer_db_mask;
 	int max_irqs;
-	u64 db_bits;
+	u64 db_bits = ntb_db_valid_mask(dev->ntb);
 
 	ntc->peer_irq_num = 0;
 
@@ -665,7 +677,8 @@ static inline int ntc_ntb_db_config(struct ntc_ntb_dev *dev)
 	}
 
 	rc = ntb_peer_db_addr(dev->ntb,
-			&peer_irq_phys_addr_base, &size);
+			&peer_irq_phys_addr_base, &size,
+			NULL, __ffs(db_bits));
 	if ((rc < 0) || (size != sizeof(u32)) ||
 		!IS_ALIGNED(peer_irq_phys_addr_base, PCIE_ADDR_ALIGN)) {
 		dev_err(&ntc->dev, "Peer DB addr invalid\n");
@@ -679,7 +692,6 @@ static inline int ntc_ntb_db_config(struct ntc_ntb_dev *dev)
 	if (unlikely(rc < 0))
 		goto err_res_map;
 
-	db_bits = ntb_db_valid_mask(dev->ntb);
 	for (i = 0; i < max_irqs && db_bits; i++) {
 		/*FIXME This is not generic implementation,
 		 * Sky-lake implementation, see intel_ntb3_peer_db_set() */
@@ -1495,6 +1507,7 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	dev->poll_val = 0;
 	dev->poll_msg = NTC_NTB_LINK_QUIESCE;
 
+#if 0
 	setup_timer(&dev->ping_pong,
 		    ntc_ntb_ping_pong_cb,
 		    ntc_ntb_to_ptrhld(dev));
@@ -1502,7 +1515,15 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	setup_timer(&dev->ping_poll,
 		    ntc_ntb_ping_poll_cb,
 		    ntc_ntb_to_ptrhld(dev));
+#else
+	timer_setup(&dev->ping_pong,
+			ntc_ntb_ping_pong_fn,
+			0);
 
+	timer_setup(&dev->ping_poll,
+			ntc_ntb_ping_poll_fn,
+			0);
+#endif
 	spin_lock_init(&dev->ping_lock);
 
 	/* init the link state machine */
