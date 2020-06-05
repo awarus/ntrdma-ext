@@ -1215,7 +1215,7 @@ static int ntc_ntb_init_own_mw_flat(struct ntc_ntb_dev *dev, int mw_idx)
 	own_mw->size = data->size_max;
 
 	if (!own_mw->size) {
-		info("size_max for MW %d is %#llx", mw_idx, data->size_max);
+		info("Error: size_max for MW %d is %#llx", mw_idx, data->size_max);
 		return -EINVAL;
 	}
 
@@ -1355,6 +1355,8 @@ static int ntc_ntb_init_own(struct ntc_ntb_dev *dev, int mw_idx)
 	struct ntc_own_mw_data *data = &own_mw_data[mw_idx];
 	struct ntc_own_mw *own_mw = &ntc->own_mws[mw_idx];
 	int rc;
+	phys_addr_t mw_base;
+	resource_size_t mw_size;
 
 	own_mw->mw_idx = mw_idx;
 	own_mw->ntc = ntc;
@@ -1371,6 +1373,9 @@ static int ntc_ntb_init_own(struct ntc_ntb_dev *dev, int mw_idx)
 
 	rc = ntb_mw_get_align_priv(dev->ntb, NTB_DEF_PEER_IDX, mw_idx,
 			&data->addr_align, &data->size_align, &data->size_max);
+	pr_debug("get align (%d) for MW %d: addr_align=0x%llx size_align=0x%llx size_max=0x%llx\n", rc, mw_idx, data->addr_align, data->size_align, data->size_max);
+	rc = ntb_peer_mw_get_addr(dev->ntb, mw_idx, &mw_base, &mw_size);
+	pr_debug("get addr (%d) for MW %d: mw_base=0x%llx mw_size=%lld\n", rc, mw_idx, mw_base, mw_size);
 
 	if (data->mm_len > data->len) {
 		info("Requested MM of length %#lx in MW of length %#lx",
@@ -1405,24 +1410,33 @@ static int ntc_ntb_init_own(struct ntc_ntb_dev *dev, int mw_idx)
 	}
 
 	if (data->reserved) {
+		pr_debug("Init own MW reserved\n");
 		rc = ntc_ntb_init_own_mw_reserved(dev, mw_idx);
-		if (rc < 0)
+		if (rc < 0) {
+			pr_debug("ntc_ntb_init_own_mw_reserved() failed (%d)\n", rc);
 			goto err;
+		}
 		data->reserved_used = true;
 		goto init_mm;
 	}
 
 	if (mw_idx == NTC_DRAM_MW_IDX) {
+		pr_debug("Init own MW flat DRAM\n");
 		rc = ntc_ntb_init_own_mw_flat(dev, mw_idx);
-		if (rc < 0)
+		if (rc < 0) {
+			pr_debug("ntc_ntb_init_own_mw_flat() failed (%d)\n", rc);
 			goto err;
+		}
 		data->flat_used = true;
 		goto init_mm;
 	}
 
+	pr_debug("Init own MW coherent\n");
 	rc = ntc_ntb_init_own_mw_coherent(dev, mw_idx);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_debug("ntc_ntb_init_own_mw_coherent() failed (%d)\n", rc);
 		goto err;
+	}
 	data->coherent_used = true;
 
  init_mm:
@@ -1470,6 +1484,10 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	ntb_db_is_unsafe(dev->ntb);
 	ntb_spad_is_unsafe(dev->ntb);
 
+
+	//ntb_link_enable(dev->ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
+	pr_debug("link state: 0x%llx\n", ntb_link_is_up(dev->ntb, NULL, NULL));
+
 	/* we'll be using the last memory window if it exists */
 	mw_count = ntb_mw_count(dev->ntb, NTB_DEF_PEER_IDX);
 	if (mw_count <= 0) {
@@ -1483,21 +1501,29 @@ static int ntc_ntb_dev_init(struct ntc_ntb_dev *dev)
 	}
 
 	rc = ntc_ntb_init_own(dev, NTC_DRAM_MW_IDX);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_debug("ntc_ntb_init_own() DRAM failed (%d)\n", rc);
 		goto err_init_own_dram;
+	}
 
 	rc = ntc_ntb_init_own(dev, NTC_INFO_MW_IDX);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_debug("ntc_ntb_init_own() INFO failed (%d)\n", rc);
 		goto err_init_own_info;
+	}
 
 	rc = ntc_ntb_init_peer(dev, NTC_DRAM_MW_IDX, 0);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_debug("ntc_ntb_init_peer() DRAM failed (%d)\n", rc);
 		goto err_init_peer_dram;
+	}
 
 	rc = ntc_ntb_init_peer(dev, NTC_INFO_MW_IDX,
 			sizeof(struct ntc_ntb_info));
-	if (rc < 0)
+	if (rc < 0) {
+		pr_debug("ntc_ntb_init_peer() INFO failed (%d)\n", rc);
 		goto err_init_peer_info;
+	}
 
 	/* haven't negotiated the version */
 	ntc->version = 0;
@@ -1785,8 +1811,10 @@ static int ntc_ntb_probe(struct ntb_client *self,
 	dev->ntb = ntb;
 
 	rc = ntc_ntb_dev_init(dev);
-	if (rc)
+	if (rc) {
+		pr_debug("init failed for device %s\n", dev_name(&ntb->dev));
 		goto err_init;
+	}
 
 	dev->ntc.dev.release = ntc_ntb_release;
 
