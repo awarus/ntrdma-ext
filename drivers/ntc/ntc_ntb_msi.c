@@ -1841,7 +1841,7 @@ int __init ntc_init(void)
 {
 	int i;
 	unsigned long mw0_mm_prealloc = sizeof(struct ntc_ntb_info);
-	unsigned long mw0_min_mm_len = 0x100000;
+	unsigned long mw0_min_mm_len = SZ_1M; // 0x100000;
 
 	info("%s %s init", DRIVER_DESCRIPTION, DRIVER_VERSION);
 
