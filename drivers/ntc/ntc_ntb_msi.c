@@ -222,6 +222,15 @@ static u32 supported_versions[] = {
 		NTC_NTB_VERSION_FIRST
 };
 
+static inline int ntb_mw_get_align_priv(struct ntb_dev *ntb, int pidx, int widx,
+					resource_size_t *addr_align,
+					resource_size_t *size_align,
+					resource_size_t *size_max)
+{
+	return ntb->ops->mw_get_align(ntb, pidx, widx, addr_align, size_align,
+			size_max);
+}
+
 static bool ntc_check_reserved(unsigned long start, unsigned long end)
 {
 	bool success;
@@ -1360,7 +1369,7 @@ static int ntc_ntb_init_own(struct ntc_ntb_dev *dev, int mw_idx)
 
 	ntb_mw_clear_trans(dev->ntb, NTB_DEF_PEER_IDX, mw_idx);
 
-	ntb_mw_get_align(dev->ntb, NTB_DEF_PEER_IDX, mw_idx,
+	rc = ntb_mw_get_align_priv(dev->ntb, NTB_DEF_PEER_IDX, mw_idx,
 			&data->addr_align, &data->size_align, &data->size_max);
 
 	if (data->mm_len > data->len) {
