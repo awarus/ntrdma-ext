@@ -370,8 +370,6 @@ static int ntrdma_create_cq(struct ib_cq *ibcq,
 		goto err_cq;
 	}
 
-	memset(cq, 0, sizeof(*cq));
-
 	ntrdma_cq_init(cq, dev);
 
 	if (ibudata && ibudata->inlen >= sizeof(inbuf)) {
