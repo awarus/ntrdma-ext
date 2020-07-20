@@ -1823,9 +1823,6 @@ static int ntc_ntb_probe(struct ntb_client *self,
 	if (rc < 0)
 		pr_debug("set_affinity failed rc %d\n", rc);
 
-//	info("=== Abort to prevent hang ===");
-//	return -EIO;
-
 	return ntc_register_device(&dev->ntc);
 
 err_init:
