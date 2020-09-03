@@ -50,8 +50,8 @@
 #define SYNC_RESET 1
 #define ASYNC_RESET 0
 
-#define NTC_INFO_MW_IDX 1	//0
-#define NTC_DRAM_MW_IDX 0	//1
+#define NTC_INFO_MW_IDX 0
+#define NTC_DRAM_MW_IDX 1
 #define NTC_MAX_NUM_MWS 2
 
 #define NTC_MAX_DMA_CHANS 8
