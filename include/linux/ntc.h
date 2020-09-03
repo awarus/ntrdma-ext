@@ -854,6 +854,29 @@ int ntc_mr_request_memcpy_unfenced_imm(struct ntc_dma_chan *chan,
 }
 
 /**
+ * ntc_signal() - append an operation to signal the peer
+ * @ntc:	Device context.
+ *
+ * Append an operation to signal the peer.  The peer driver will be receive
+ * ntc_signal_event() after processing this operation.
+ *
+ * The channel implementation may coalesce interrupts to the peer driver,
+ * therefore the upper layer must not rely on a one-to-one correspondence of
+ * signals requested, and signal events received.  The only guarantee is that
+ * at least one signal event will be received after the last signal requested.
+ *
+ * The upper layer should attempt to minimize the frequency of signal requests.
+ * Signal requests may be implemented as small operations processed as dma
+ * requests, and many small dma requests may impact the throughput performance
+ * of the channel.  Furthermore, the channel may not coalesce interrupts, and a
+ * high frequency of interrupts may impact the scheduling performance of the
+ * peer.
+ *
+ * Return: Zero on success, othewise an error number.
+ */
+int ntc_signal(struct ntc_dev *ntc, int vec);
+
+/**
  * ntc_req_signal() - append an operation to signal the peer
  * @ntc:	Device context.
  * @chan:	Channel request context.

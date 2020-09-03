@@ -672,11 +672,11 @@ static inline int ntc_ntb_db_config(struct ntc_ntb_dev *dev)
 	phys_addr_t peer_irq_phys_addr_base;
 	u64 peer_db_mask;
 	int max_irqs;
-	u64 db_bits = ntb_db_valid_mask(dev->ntb);
+	u64 db_bits = 0xfffffffffffffff;
 
 	ntc->peer_irq_num = 0;
 
-	max_irqs = ntb_db_vector_count(dev->ntb);
+	max_irqs = num_online_cpus();
 
 	if (max_irqs <= 0 || max_irqs> NTB_MAX_IRQS) {
 		dev_err(&ntc->dev, "max_irqs %d - not supported\n",
@@ -1075,6 +1075,20 @@ err_imm:
 	return rc;
 }
 EXPORT_SYMBOL(ntc_req_imm);
+
+int ntc_signal(struct ntc_dev *ntc, int vec)
+{
+	struct ntc_ntb_dev *dev = ntc_ntb_down_cast(ntc);
+	u64 db_bits = 1;
+
+	dev_dbg(&ntc->dev, "send signal to peer");
+
+	if (WARN_ON(ntc->peer_irq_num <= vec))
+		return -EFAULT;
+
+	return ntb_peer_db_set(dev->ntb, db_bits << vec);
+}
+EXPORT_SYMBOL(ntc_signal);
 
 int ntc_req_signal(struct ntc_dev *ntc, struct ntc_dma_chan *chan,
 		void (*cb)(void *cb_ctx), void *cb_ctx, int vec)
@@ -1728,7 +1742,7 @@ static int set_affinity(struct ntb_dev *ntb)
 	struct pci_dev *pdev = ntb->pdev;
 	unsigned int online_cpus = 0;
 
-	max_irqs = ntb_db_vector_count(ntb);
+	max_irqs = num_online_cpus();
 	if (max_irqs <= 0 || max_irqs > NTB_MAX_IRQS) {
 		pr_err("max_irqs %d is not supported\n", max_irqs);
 		return -EFAULT;
