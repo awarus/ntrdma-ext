@@ -19,57 +19,57 @@
  * Return the PFN for the specified address in the vma. This only
  * works for a vma that is VM_PFNMAP, VM_IO and not hugetlb.
  */
-static inline unsigned long ntc_follow_io_pfn(struct vm_area_struct *vma,
-					unsigned long address, int write)
-{
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *ptep, pte;
-	spinlock_t *ptl;
-	unsigned long pfn;
-	struct mm_struct *mm = vma->vm_mm;
+// static inline unsigned long ntc_follow_io_pfn(struct vm_area_struct *vma,
+// 					unsigned long address, int write)
+// {
+// 	pgd_t *pgd;
+// 	p4d_t *p4d;
+// 	pud_t *pud;
+// 	pmd_t *pmd;
+// 	pte_t *ptep, pte;
+// 	spinlock_t *ptl;
+// 	unsigned long pfn;
+// 	struct mm_struct *mm = vma->vm_mm;
 
-	if (!(vma->vm_flags & VM_PFNMAP) ||
-		!(vma->vm_flags & VM_IO) ||
-		is_vm_hugetlb_page(vma))
-		return 0;
+// 	if (!(vma->vm_flags & VM_PFNMAP) ||
+// 		!(vma->vm_flags & VM_IO) ||
+// 		is_vm_hugetlb_page(vma))
+// 		return 0;
 
-	pgd = pgd_offset(mm, address);
-	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		return 0;
+// 	pgd = pgd_offset(mm, address);
+// 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+// 		return 0;
 
-	p4d = p4d_offset(pgd, address);
-	if (p4d_none(*p4d) || unlikely(p4d_bad(*p4d)))
-		return 0;
+// 	p4d = p4d_offset(pgd, address);
+// 	if (p4d_none(*p4d) || unlikely(p4d_bad(*p4d)))
+// 		return 0;
 
-	pud = pud_offset(p4d, address);
-	if (pud_none(*pud))
-		return 0;
-	if (unlikely(pud_bad(*pud)))
-		return 0;
+// 	pud = pud_offset(p4d, address);
+// 	if (pud_none(*pud))
+// 		return 0;
+// 	if (unlikely(pud_bad(*pud)))
+// 		return 0;
 
-	pmd = pmd_offset(pud, address);
-	if (pmd_none(*pmd))
-		return 0;
-	if (unlikely(pmd_bad(*pmd)))
-		return 0;
+// 	pmd = pmd_offset(pud, address);
+// 	if (pmd_none(*pmd))
+// 		return 0;
+// 	if (unlikely(pmd_bad(*pmd)))
+// 		return 0;
 
-	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-	pte = *ptep;
-	if (!pte_present(pte))
-		goto bad;
-	if (write && !pte_write(pte))
-		goto bad;
+// 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+// 	pte = *ptep;
+// 	if (!pte_present(pte))
+// 		goto bad;
+// 	if (write && !pte_write(pte))
+// 		goto bad;
 
-	pfn = pte_pfn(pte);
-	pte_unmap_unlock(ptep, ptl);
-	return pfn;
- bad:
-	pte_unmap_unlock(ptep, ptl);
-	return 0;
-}
+// 	pfn = pte_pfn(pte);
+// 	pte_unmap_unlock(ptep, ptl);
+// 	return pfn;
+//  bad:
+// 	pte_unmap_unlock(ptep, ptl);
+// 	return 0;
+// }
 
 static inline int ntc_get_io_pfn_segment_locked(struct mm_struct *mm,
 						unsigned long addr,
@@ -94,7 +94,7 @@ static inline int ntc_get_io_pfn_segment_locked(struct mm_struct *mm,
 		unlikely(start >= vma->vm_end))
 		return -EINVAL;
 
-	pfn = ntc_follow_io_pfn(vma, start, write);
+	//pfn = ntc_follow_io_pfn(vma, start, write);
 	if (!pfn)
 		return -EINVAL;
 
@@ -109,7 +109,7 @@ static inline int ntc_get_io_pfn_segment_locked(struct mm_struct *mm,
 			unlikely(start >= vma->vm_end))
 			goto partial;
 
-		pfn = ntc_follow_io_pfn(vma, start, write);
+		//pfn = ntc_follow_io_pfn(vma, start, write);
 		if (unlikely((pfn != start_pfn + ((start - addr) >> PAGE_SHIFT))
 				|| !pfn))
 			goto partial;
